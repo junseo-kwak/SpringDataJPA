@@ -12,6 +12,8 @@ import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +26,9 @@ class MemberRepositoryTest {
     private MemberRepository memberRepositry;
     @Autowired
     private TeamRepository teamRepository;
+
+    @PersistenceContext
+    private EntityManager em;
 
     @Test
     void testMember(){
@@ -156,11 +161,68 @@ class MemberRepositoryTest {
         for (Member member : members) {
             System.out.println("member = " + member);
         }
-
-
         assertThat(count).isEqualTo(3);
+    }
 
+    @Test
+    void findMemberLazy(){
+
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+
+        Member member1 = new Member("member1",10,teamA);
+        Member member2 = new Member("member2",10,teamB);
+
+        memberRepositry.save(member1);
+        memberRepositry.save(member2);
+
+        em.flush();
+        em.clear();
+
+        List<Member> members = memberRepositry.findEntityGraphByUsername("member1");
+
+        for (Member member : members) {
+            System.out.println("member = " + member);
+            System.out.println("member.teamClass = " + member.getTeam().getClass());
+            System.out.println("member.getTeam().getName() = " + member.getTeam().getName());
+        }
 
     }
+
+    @Test
+    void queryHint(){
+        Member member = new Member("member1",10);
+
+        memberRepositry.save(member);
+        em.flush();
+        em.clear();
+
+        Member findMember = memberRepositry.findReadOnlyByUsername("member1");
+        findMember.setUsername("member2");
+        em.flush();
+    }
+
+    @Test
+    void lock(){
+        Member member = new Member("member1",10);
+
+        memberRepositry.save(member);
+        em.flush();
+        em.clear();
+
+        Member findMember = memberRepositry.findLockByUsername("member1");
+    }
+
+    @Test
+    void callCustom(){
+        Member member = new Member("member1",10);
+        memberRepositry.save(member);
+        List<Member> memberCustom = memberRepositry.findMemberCustom();
+
+    }
+
 
 }
